@@ -1,0 +1,13 @@
+[package]
+name = "sql-generator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+argh = "0.1.12"
+crossterm = "0.28.1"
+rand = "0.8.5"
+ratatui = "0.28.1"
+serde = "1.0.210"
+strum = "0.26.3"
+toml = "0.8.19"
