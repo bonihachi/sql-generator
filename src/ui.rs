@@ -1,5 +1,33 @@
 use ratatui::{
-    buffer::Buffer, layout::{Constraint, Direction, Layout, Rect}, style::{palette::tailwind, Color, Style, Stylize}, symbols, text::{Line, Span, Text}, widgets::{Block, List, ListItem, Paragraph, Padding, Tabs, Widget}, Frame
+    buffer::Buffer,
+    layout::{
+        Constraint,
+        Direction,
+        Layout,
+        Rect
+    },
+    style::{
+        palette::tailwind,
+        Color,
+        Style,
+        Stylize
+    },
+    symbols, 
+    text::{
+        Line,
+        Span,
+        Text
+    },
+    widgets::{
+        Block,
+        List,
+        ListItem,
+        Paragraph,
+        Padding,
+        Tabs,
+        Widget
+    },
+    Frame
 };
 
 use crate::app::{
