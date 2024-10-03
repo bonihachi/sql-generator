@@ -128,7 +128,20 @@ impl CurrentTab {
     }
     
     fn render_init(self, app: &App, area: Rect, buf: &mut Buffer) {
-        Paragraph::new("")
+        let mut list_items = Vec::<ListItem>::new();
+        for i in 0..app.init_config.len() {
+            let mut text_color = Color::DarkGray;
+            if i == app.current_column {
+                text_color = Color::White;
+            }
+            
+            list_items.push(ListItem::new(Line::from(Span::styled(
+                format!("{} {}", app.init_config[i].0, app.init_config[i].1),
+                Style::default().fg(text_color),
+            ))));
+        }
+
+        List::new(list_items)
             .block(self.block())
             .render(area, buf);
     }

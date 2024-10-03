@@ -1,5 +1,6 @@
 use strum::{Display, EnumIter, FromRepr};
 use serde::Deserialize;
+use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
 pub struct Table {
@@ -14,7 +15,7 @@ pub enum AppState {
     Quitting,
 }
 
-#[derive(Default, Clone, Copy, FromRepr, EnumIter, Display)]
+#[derive(Default, Clone, Copy, FromRepr, EnumIter, Display, PartialEq, Eq)]
 pub enum CurrentTab {
     #[default]
     #[strum(to_string = "INIT")]
@@ -88,6 +89,7 @@ pub struct App {
     pub specified_columns: SpecifiedColumns,
     pub constraint_input: String,
     pub currently_editing: Option<CurrentlyEditing>,
+    pub init_config: Vec<(String, String)>,
 }
 
 impl App {
@@ -101,6 +103,18 @@ impl App {
             specified_columns: SpecifiedColumns::new(len),
             constraint_input: String::new(),
             currently_editing: None,
+            init_config:
+                Vec::from([
+                    ("LINESIZE", "10000"),
+                    ("PAGESIZE", "10000"),
+                    ("NUMWIDTH", "14"),
+                    ("COLSEP", "\",\""),
+                    ("NLS_DATE_FORMAT", "'YYYY/MM/DD_HH24:MI:SS'"),
+                ])
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect()
+                ,
         }
     }
 
@@ -129,15 +143,28 @@ impl App {
     
     /// Move to the next column
     pub fn next_column(&mut self) {
-        if self.current_column < self.base_columns.len() - 1 {
-            self.current_column = self.current_column + 1;
+        if self.current_tab == CurrentTab::Init {
+            if self.current_column < self.init_config.len() - 1 {
+                self.current_column = self.current_column + 1;
+            } else {
+                self.current_column = 0;
+            }
         } else {
-            self.current_column = 0;
+            if self.current_column < self.base_columns.len() - 1 {
+                self.current_column = self.current_column + 1;
+            } else {
+                self.current_column = 0;
+            }
         }
     }
     
     pub fn save_constraint(&mut self) {
-        self.specified_columns.where_constraints.insert(self.current_column, Some(self.constraint_input.clone()));
+        let input = self.constraint_input.clone();
+        if input.len() > 0 {
+            self.specified_columns.where_constraints[self.current_column] =  Some(input.clone());
+        } else {
+            self.specified_columns.where_constraints[self.current_column] =  None;
+        }
         self.constraint_input = String::new();
         self.currently_editing = None;
     }
@@ -148,8 +175,18 @@ impl App {
     
     pub fn generate_query(self, table_name: &String) {
         let len = self.base_columns.len();
+        let conf_len = self.init_config.len();
         
-        print!("SELECT");
+        for i in 0..conf_len {
+            let (key, value) = &self.init_config[i];
+            if i == 4 {
+                println!("ALTER SESSION SET {} = {}", key, value);
+            } else {
+                println!("SET {} {}", key, value);
+            }
+        }
+        
+        print!("\nSELECT");
         
         let mut num_of_selected_columns = 0;
         

@@ -108,6 +108,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                         if let CurrentTab::Where = app.current_tab {
                             app.state = AppState::Editing;
                             app.currently_editing = Some(app::CurrentlyEditing::Constraint);
+                            if let Some(existing_constraint) = &app.specified_columns.where_constraints[app.current_column] {
+                                app.constraint_input = existing_constraint.clone();
+                            }
                         }
                     }
                     _ => {}
