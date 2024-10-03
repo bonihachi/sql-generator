@@ -1,11 +1,11 @@
 use std::{error::Error, io};
 use std::env;
 
-use app::CurrentTab;
+use app::{CurrentTab, CurrentlyEditing};
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     crossterm::{
-        event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+        event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
         execute,
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
@@ -79,35 +79,66 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                     KeyCode::Char('j') | KeyCode::Down => app.next_column(),
                     KeyCode::Char('k') | KeyCode::Up => app.previous_column(),
                     KeyCode::Enter => match app.current_tab {
-                        CurrentTab::Tab0 => {
+                        CurrentTab::Init => {}
+                        CurrentTab::Select => {
                             let current_column = app.current_column;
                             match app.specified_columns.selected_columns[current_column] {
                                 SelectedFlag::Selected => app.specified_columns.selected_columns[current_column] = SelectedFlag::NotSelected,
                                 SelectedFlag::NotSelected => app.specified_columns.selected_columns[current_column] = SelectedFlag::Selected,
                             }
                         },
-                        CurrentTab::Tab1 => {
+                        CurrentTab::OrderBy => {
                             let current_column = app.current_column;
                             match app.specified_columns.ordered_columns[current_column] {
                                 OrderdFlag::Asc => app.specified_columns.ordered_columns[current_column] = OrderdFlag::Desc,
                                 OrderdFlag::Desc => app.specified_columns.ordered_columns[current_column] = OrderdFlag::Off,
                                 OrderdFlag::Off => app.specified_columns.ordered_columns[current_column] = OrderdFlag::Asc,
                             }
-                        }
+                        },
+                        CurrentTab::Where => {}
                     }
-                    KeyCode::Char('a') => match app.current_tab {
-                        CurrentTab::Tab0 => {
+                    KeyCode::Char('a') => {
+                        if let CurrentTab::Select = app.current_tab {
                             for i in 0..app.base_columns.len() {
                                 app.specified_columns.selected_columns[i] = SelectedFlag::Selected;
                             }
-                        },
-                        CurrentTab::Tab1 => {}
+                        }
+                    },
+                    KeyCode::Char('e') => {
+                        if let CurrentTab::Where = app.current_tab {
+                            app.state = AppState::Editing;
+                            app.currently_editing = Some(app::CurrentlyEditing::Constraint);
+                        }
                     }
                     _ => {}
                 },
+                AppState::Editing => {
+                    match key.code {
+                        KeyCode::Enter => {
+                            if let Some(editing) = &app.currently_editing {
+                                app.save_constraint();
+                                app.state = AppState::Running;
+                            }
+                        },
+                        KeyCode::Backspace => {
+                            app.constraint_input.pop();
+                        },
+                        KeyCode::Esc => {
+                            app.state = AppState::Running;
+                            app.clear_constraint();
+                            app.currently_editing = None;
+                        },
+                        KeyCode::Char(value) => {
+                            if let Some(editing) = &app.currently_editing {
+                                app.constraint_input.push(value);
+                            }
+                        }
+                        _ => {}
+                    }
+                },
                 AppState::Quitting => {
                     return Ok(());
-                }
+                },
             }
         }
         

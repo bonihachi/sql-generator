@@ -25,13 +25,14 @@ use ratatui::{
         Paragraph,
         Padding,
         Tabs,
-        Widget
+        Widget,
+        Borders,
     },
     Frame
 };
 
 use crate::app::{
-    App, CurrentTab, OrderdFlag, SelectedFlag
+    App, CurrentTab, CurrentlyEditing, OrderdFlag, SelectedFlag
 };
 
 use strum::IntoEnumIterator;
@@ -79,19 +80,43 @@ pub fn ui(frame: &mut Frame, app: &App) {
     let footer = Line::raw("◄ ► to change tab | Press q to quit")
         .centered();
     
-    // Render main panel
-
-    // app.current_tab.render(chunks[1], frame.buffer_mut());
-    
+    // Render main panel depeding on the current tab
     match app.current_tab {
-        CurrentTab::Tab0 => app.current_tab.render_tab0(app, chunks[1], frame.buffer_mut()),
-        CurrentTab::Tab1 => app.current_tab.render_tab1(app, chunks[1], frame.buffer_mut()),
+        CurrentTab::Init => app.current_tab.render_init(app, chunks[1], frame.buffer_mut()),
+        CurrentTab::Select => app.current_tab.render_select(app, chunks[1], frame.buffer_mut()),
+        CurrentTab::OrderBy => app.current_tab.render_order(app, chunks[1], frame.buffer_mut()),
+        CurrentTab::Where => app.current_tab.render_where(app, chunks[1], frame.buffer_mut()),
     }
     
 
     // Render footer
     
     frame.render_widget(footer, chunks[2]);
+    
+    if let Some(editing) = &app.currently_editing {
+        let popup_block = Block::default()
+        .title("Enter a constraint for the selected column")
+        .borders(Borders::NONE)
+        .style(Style::default().bg(Color::DarkGray));
+        
+        let area = centered_rect(60, 25, frame.area());
+        frame.render_widget(popup_block, area);
+        
+        let popup_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .margin(1)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .split(area);
+        
+        let column_block = Block::default().title("Column").borders(Borders::ALL);
+        let constraint_block = Block::default().title("Constraint").borders(Borders::ALL);
+        
+        let column_text = Paragraph::new(app.base_columns[app.current_column].clone()).block(column_block);
+        frame.render_widget(column_text, popup_chunks[0]);
+        
+        let constraint_text = Paragraph::new(app.constraint_input.clone()).block(constraint_block);
+        frame.render_widget(constraint_text, popup_chunks[1]);
+    }
 }
 
 impl CurrentTab {
@@ -101,8 +126,14 @@ impl CurrentTab {
             .bg(self.palette().c900)
             .into()
     }
+    
+    fn render_init(self, app: &App, area: Rect, buf: &mut Buffer) {
+        Paragraph::new("")
+            .block(self.block())
+            .render(area, buf);
+    }
 
-    fn render_tab0(self, app: &App, area: Rect, buf: &mut Buffer) {
+    fn render_select(self, app: &App, area: Rect, buf: &mut Buffer) {
         let mut list_items = Vec::<ListItem>::new();
         let mut starting_point = 0;
         if app.current_column as isize - 4 >= 0 {
@@ -136,7 +167,7 @@ impl CurrentTab {
             .render(area, buf);
     }
     
-    fn render_tab1(self, app: &App, area: Rect, buf: &mut Buffer) {
+    fn render_order(self, app: &App, area: Rect, buf: &mut Buffer) {
         let mut list_items = Vec::<ListItem>::new();
         let mut starting_point = 0;
         if app.current_column as isize - 4 >= 0 {
@@ -176,6 +207,40 @@ impl CurrentTab {
             .render(area, buf);
     }
     
+    fn render_where(self, app: &App, area: Rect, buf: &mut Buffer) {
+        let mut list_items = Vec::<ListItem>::new();
+        let mut starting_point = 0;
+        if app.current_column as isize - 4 >= 0 {
+            starting_point = app.current_column - 4;
+        }
+        for i in starting_point..app.base_columns.len() {
+            let mut text_color = Color::DarkGray;
+            if i == app.current_column {
+                text_color = Color::White;
+            }
+
+            match &app.specified_columns.where_constraints[i] {
+                Some(constraint) => {
+                    list_items.push(ListItem::new(Line::from(Span::styled(
+                        format!("{} {}", app.base_columns[i], constraint),
+                        Style::default().fg(text_color),
+                    ))));
+                },
+                None => {
+                    list_items.push(ListItem::new(Line::from(Span::styled(
+                        format!("{}", app.base_columns[i]),
+                        Style::default().fg(text_color),
+                    ))));
+                }
+            }
+
+        }
+        
+        List::new(list_items)
+            .block(self.block())
+            .render(area, buf);
+    }
+    
     fn block(self) -> Block<'static> {
         Block::bordered()
             .border_set(symbols::border::PROPORTIONAL_TALL)
@@ -185,8 +250,33 @@ impl CurrentTab {
     
     const fn palette(self) -> tailwind::Palette {
         match self {
-            Self::Tab0 => tailwind::BLUE,
-            Self::Tab1 => tailwind::EMERALD,
+            Self::Init => tailwind::ORANGE,
+            Self::Select => tailwind::BLUE,
+            Self::OrderBy => tailwind::EMERALD,
+            Self::Where => tailwind::PURPLE,
         }
     }
+}
+
+/// helper function to create a centered rect using up certain percentage of the available rect `r`
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    // Cut the given rectangle into three vertical pieces
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    // Then cut the middle vertical piece into three width-wise pieces
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1] // Return the middle chunk
 }
