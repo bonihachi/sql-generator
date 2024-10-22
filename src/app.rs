@@ -1,11 +1,13 @@
 use serde::Deserialize;
 use strum::{Display, EnumIter, FromRepr};
 
+/// TOML展開用構造体
 #[derive(Debug, Deserialize)]
 pub struct Table {
     columns: Vec<String>,
 }
 
+/// アプリケーション状態
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 pub enum AppState {
     #[default]
@@ -14,6 +16,7 @@ pub enum AppState {
     Quitting,
 }
 
+/// 現在のタブ
 #[derive(Default, Clone, Copy, FromRepr, EnumIter, Display, PartialEq, Eq)]
 pub enum CurrentTab {
     #[default]
@@ -60,6 +63,7 @@ pub enum OrderdFlag {
     Off,
 }
 
+/// 状態保持用構造体
 #[derive(Default)]
 pub struct SpecifiedColumns {
     pub selected_columns: Vec<SelectedFlag>,    // for SELECT
@@ -68,6 +72,7 @@ pub struct SpecifiedColumns {
 }
 
 impl SpecifiedColumns {
+    /// 初期化処理
     pub fn new(len: usize) -> SpecifiedColumns {
         SpecifiedColumns {
             selected_columns: vec![SelectedFlag::NotSelected; len],
@@ -83,17 +88,18 @@ pub enum CurrentlyEditing {
 
 #[derive(Default)]
 pub struct App {
-    pub state: AppState,
-    pub current_tab: CurrentTab,
-    pub base_columns: Vec<String>,
-    pub current_column: usize,
-    pub specified_columns: SpecifiedColumns,
-    pub constraint_input: String,
-    pub currently_editing: Option<CurrentlyEditing>,
-    pub init_config: Vec<(String, String)>,
+    pub state: AppState,                             // 状態
+    pub current_tab: CurrentTab,                     // カレントタブ
+    pub base_columns: Vec<String>,                   // テーブル情報
+    pub current_column: usize,                       // 現在のカラムを示すインデックス
+    pub specified_columns: SpecifiedColumns,         // 設定情報
+    pub constraint_input: String,                    // 制約の入力
+    pub currently_editing: Option<CurrentlyEditing>, // 現在編集中かどうか
+    pub init_config: Vec<(String, String)>,          // クエリ設定
 }
 
 impl App {
+    /// 初期化処理
     pub fn new(table: Table) -> App {
         let len = table.columns.len();
         App {
@@ -117,21 +123,24 @@ impl App {
         }
     }
 
+    /// 次のタブを選択
     pub fn next_tab(&mut self) {
         self.current_tab = self.current_tab.next();
         self.current_column = 0;
     }
 
+    /// 前のタブを選択
     pub fn previous_tab(&mut self) {
         self.current_tab = self.current_tab.previous();
         self.current_column = 0;
     }
 
+    /// アプリケーションの終了
     pub fn quit(&mut self) {
         self.state = AppState::Quitting;
     }
 
-    /// Move to the previous column
+    /// 前のカラムを選択
     pub fn previous_column(&mut self) {
         if self.current_column > 0 {
             self.current_column -= 1;
@@ -140,7 +149,7 @@ impl App {
         }
     }
 
-    /// Move to the next column
+    /// 次のカラムを選択
     pub fn next_column(&mut self) {
         if self.current_tab == CurrentTab::Init {
             if self.current_column < self.init_config.len() - 1 {
@@ -155,6 +164,7 @@ impl App {
         }
     }
 
+    /// 制約の保存
     pub fn save_constraint(&mut self) {
         let input = self.constraint_input.clone();
         if !input.is_empty() {
@@ -166,10 +176,12 @@ impl App {
         self.currently_editing = None;
     }
 
+    /// 制約のクリア
     pub fn clear_constraint(&mut self) {
         self.constraint_input = String::new();
     }
 
+    /// クエリの生成
     pub fn generate_query(self, table_name: &String) {
         let len = self.base_columns.len();
         let conf_len = self.init_config.len();

@@ -21,6 +21,7 @@ use crate::{
 
 use std::fs::{self};
 
+/// メイン処理
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
     let table_name = &args[1];
@@ -56,6 +57,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// アプリケーションの起動
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
     loop {
         terminal.draw(|f| ui(f, app))?;

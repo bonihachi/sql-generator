@@ -14,6 +14,14 @@ use strum::IntoEnumIterator;
 
 /// UIを描画する
 pub fn ui(frame: &mut Frame, app: &App) {
+    // チャンク分割
+    // |---------------|
+    // |   Length(0)   | ヘッダーチャンク
+    // |---------------|
+    // |     Min(0)    | メインチャンク
+    // |---------------|
+    // |   Length(1)   | フッターチャンク
+    // |---------------|
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -23,7 +31,7 @@ pub fn ui(frame: &mut Frame, app: &App) {
         ])
         .split(frame.area());
 
-    // Render Header
+    // ヘッダーの描画
 
     let header_chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -48,7 +56,7 @@ pub fn ui(frame: &mut Frame, app: &App) {
 
     let footer = Line::raw("◄ ► to change tab | Press q to quit").centered();
 
-    // Render main panel depeding on the current tab
+    // カレントタブに基づいたメインパネルの描画
     match app.current_tab {
         CurrentTab::Init => app
             .current_tab
@@ -64,7 +72,7 @@ pub fn ui(frame: &mut Frame, app: &App) {
             .render_where(app, chunks[1], frame.buffer_mut()),
     }
 
-    // Render footer
+    // フッターの描画
 
     frame.render_widget(footer, chunks[2]);
 
@@ -96,6 +104,7 @@ pub fn ui(frame: &mut Frame, app: &App) {
 }
 
 impl CurrentTab {
+    /// ラベルを描画する
     fn label(self) -> Line<'static> {
         format!(" {self} ")
             .fg(tailwind::SLATE.c200)
@@ -223,6 +232,7 @@ impl CurrentTab {
         List::new(list_items).block(self.block()).render(area, buf);
     }
 
+    /// ブロックを描画する
     fn block(self) -> Block<'static> {
         Block::bordered()
             .border_set(symbols::border::PROPORTIONAL_TALL)
@@ -230,6 +240,7 @@ impl CurrentTab {
             .border_style(self.palette().c700)
     }
 
+    /// カレントタブをPaletteにマップする
     const fn palette(self) -> tailwind::Palette {
         match self {
             Self::Init => tailwind::ORANGE,
