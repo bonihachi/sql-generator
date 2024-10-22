@@ -1,10 +1,9 @@
-use strum::{Display, EnumIter, FromRepr};
 use serde::Deserialize;
-use std::collections::HashMap;
+use strum::{Display, EnumIter, FromRepr};
 
 #[derive(Debug, Deserialize)]
 pub struct Table {
-    columns: Vec<String>
+    columns: Vec<String>,
 }
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
@@ -44,6 +43,7 @@ impl CurrentTab {
     }
 }
 
+/// 選択フラグ
 #[derive(Default, Clone, Copy, Eq, PartialEq)]
 pub enum SelectedFlag {
     #[default]
@@ -51,6 +51,7 @@ pub enum SelectedFlag {
     NotSelected,
 }
 
+/// オーダーフラグ
 #[derive(Default, Clone, Copy)]
 pub enum OrderdFlag {
     #[default]
@@ -61,8 +62,8 @@ pub enum OrderdFlag {
 
 #[derive(Default)]
 pub struct SpecifiedColumns {
-    pub selected_columns: Vec<SelectedFlag>, // for SELECT
-    pub ordered_columns: Vec<OrderdFlag>, // for ORDERD BY
+    pub selected_columns: Vec<SelectedFlag>,    // for SELECT
+    pub ordered_columns: Vec<OrderdFlag>,       // for ORDERD BY
     pub where_constraints: Vec<Option<String>>, // for WHERE
 }
 
@@ -103,18 +104,16 @@ impl App {
             specified_columns: SpecifiedColumns::new(len),
             constraint_input: String::new(),
             currently_editing: None,
-            init_config:
-                Vec::from([
-                    ("LINESIZE", "10000"),
-                    ("PAGESIZE", "10000"),
-                    ("NUMWIDTH", "14"),
-                    ("COLSEP", "\",\""),
-                    ("NLS_DATE_FORMAT", "'YYYY/MM/DD_HH24:MI:SS'"),
-                ])
-                .into_iter()
-                .map(|(k, v)| (k.to_string(), v.to_string()))
-                .collect()
-                ,
+            init_config: Vec::from([
+                ("LINESIZE", "10000"),
+                ("PAGESIZE", "10000"),
+                ("NUMWIDTH", "14"),
+                ("COLSEP", "\",\""),
+                ("NLS_DATE_FORMAT", "'YYYY/MM/DD_HH24:MI:SS'"),
+            ])
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect(),
         }
     }
 
@@ -135,48 +134,46 @@ impl App {
     /// Move to the previous column
     pub fn previous_column(&mut self) {
         if self.current_column > 0 {
-            self.current_column = self.current_column - 1;
+            self.current_column -= 1;
         } else {
             self.current_column = self.base_columns.len() - 1;
         }
     }
-    
+
     /// Move to the next column
     pub fn next_column(&mut self) {
         if self.current_tab == CurrentTab::Init {
             if self.current_column < self.init_config.len() - 1 {
-                self.current_column = self.current_column + 1;
+                self.current_column += 1;
             } else {
                 self.current_column = 0;
             }
+        } else if self.current_column < self.base_columns.len() - 1 {
+            self.current_column += 1;
         } else {
-            if self.current_column < self.base_columns.len() - 1 {
-                self.current_column = self.current_column + 1;
-            } else {
-                self.current_column = 0;
-            }
+            self.current_column = 0;
         }
     }
-    
+
     pub fn save_constraint(&mut self) {
         let input = self.constraint_input.clone();
-        if input.len() > 0 {
-            self.specified_columns.where_constraints[self.current_column] =  Some(input.clone());
+        if !input.is_empty() {
+            self.specified_columns.where_constraints[self.current_column] = Some(input.clone());
         } else {
-            self.specified_columns.where_constraints[self.current_column] =  None;
+            self.specified_columns.where_constraints[self.current_column] = None;
         }
         self.constraint_input = String::new();
         self.currently_editing = None;
     }
-    
+
     pub fn clear_constraint(&mut self) {
         self.constraint_input = String::new();
     }
-    
+
     pub fn generate_query(self, table_name: &String) {
         let len = self.base_columns.len();
         let conf_len = self.init_config.len();
-        
+
         for i in 0..conf_len {
             let (key, value) = &self.init_config[i];
             if i == 4 {
@@ -185,24 +182,24 @@ impl App {
                 println!("SET {} {}", key, value);
             }
         }
-        
+
         print!("\nSELECT");
-        
+
         let mut num_of_selected_columns = 0;
-        
+
         for i in 0..len {
             if self.specified_columns.selected_columns[i] == SelectedFlag::Selected {
                 num_of_selected_columns += 1;
             }
         }
-        
+
         if num_of_selected_columns == len || num_of_selected_columns == 0 {
             print!(" *")
         } else {
             let mut first_element = true;
             for i in 0..len {
                 match self.specified_columns.selected_columns[i] {
-                    SelectedFlag::Selected =>  {
+                    SelectedFlag::Selected => {
                         if first_element {
                             print!("\n\t{}", self.base_columns[i]);
                             first_element = false;
@@ -211,13 +208,13 @@ impl App {
                             print!("\t{}", self.base_columns[i]);
                         }
                     }
-                    SelectedFlag::NotSelected => {},
+                    SelectedFlag::NotSelected => {}
                 }
             }
         }
-        
+
         print!("\nFROM {}", table_name);
-        
+
         let mut first_element = true;
         for i in 0..len {
             if let Some(constraint) = &self.specified_columns.where_constraints[i] {
@@ -231,11 +228,11 @@ impl App {
                 }
             }
         }
-        
+
         let mut first_element = true;
         for i in 0..len {
             match self.specified_columns.ordered_columns[i] {
-                OrderdFlag::Asc =>  {
+                OrderdFlag::Asc => {
                     if first_element {
                         println!("\nORDER BY");
                         print!("\t{} ASC", self.base_columns[i]);
@@ -244,7 +241,7 @@ impl App {
                         print!(",\n\t{} ASC", self.base_columns[i]);
                     }
                 }
-                OrderdFlag::Desc =>  {
+                OrderdFlag::Desc => {
                     if first_element {
                         println!("\nORDER BY");
                         print!("\t{} DESC", self.base_columns[i]);
@@ -253,7 +250,7 @@ impl App {
                         print!(",\n\t{} DESC", self.base_columns[i]);
                     }
                 }
-                OrderdFlag::Off => {},
+                OrderdFlag::Off => {}
             }
         }
         print!("\n;");
